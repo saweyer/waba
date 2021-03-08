@@ -1,0 +1,41 @@
+<html><head><title>addToClasspath README</title></head><body>
+
+<h2>addToClasspath README</h2>
+
+<p>This directory contains <b>jar</b> files you add to your CLASSPATH to do Waba development.
+Documentation for these files is contained elsewhere in the distribution.
+
+<dl>
+<dt><b>wababin.jar</b><dd>Contains the <tt>wababin.Warp</tt>, <tt>wababin.Exegen</tt>, and <tt>wababin.GUI</tt>
+programs for building Waba packages out of Java files.
+<dt><b>waba.jar</b><dd>Contains the <tt>waba/*</tt> packages and class files.  Also
+contains the source files, except for java.lang -- if you want to see the Waba for Newton versions
+of the java.lang source files, look in the aux/LibrarySource/lib_waba_ntk/waba/lang folder instead (that's where you'll find the .pkg file too).
+Note that there are some differences between these packages and the standard Waba distribution.
+The Object, String, and Vm classes have some additions not found in normal Waba; see the
+documentation for specifics.
+<dt><b>extra.jar</b><dd>Contains the <tt>extra/*</tt> packages by Rob Nielson, a popular additional
+set of classes for many Waba applications.  Also contains the source files.
+<dt><b>newton.jar</b><dd>Contains the <tt>newton</tt> package, which holds the NSWabaAPI classes.  Also contains the source files.
+</dl>
+
+<p>The extra.jar and newton.jar files can be converted into .pkg files to load onto the Newton.
+To do this you have to unarchive the jar file, creating a directory, then call warp and exegen,
+then you can delete the directory and other junk.  On MacOS X I can do this for the newton.jar 
+file as so:
+<p><tt><pre>
+jar -xvf newton.jar
+java wababin.Warp c /f 20 newton newton/*.class
+java wababin.Exegen /f 20 newton newton newton
+rm -rf newton META-INF newton.pkg~
+open -a PackType newton.pkg
+jar -xvf extra.jar
+java wababin.Warp c /f 20 wextra extra/*.class extra/*/*.class extra/*/*/*.class extra/*/*/*/*.class
+java wababin.Exegen /f 20 wextra wextra wextra
+rm -rf extra META-INF wextra.pkg~
+open -a PackType wextra.pkg
+</pre></tt>
+
+<p>To create the waba.pkg library, see ../LibrarySource/lib_waba_ntk.
+
+</body</html>

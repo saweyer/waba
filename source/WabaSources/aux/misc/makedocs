@@ -1,0 +1,3 @@
+#! /bin/tcsh
+
+javadoc -d ../../docs/classdocs/ -overview overview.html.frag -sourcepath ../addToClasspath/extra.jar:../addToClassPath/newton.jar:../addToClassPath/waba.jar waba.ui waba.io waba.fx waba.util waba.sys waba.applet newton extra.ui extra.io extra.util ../LibrarySource/lib_waba_ntk/waba/lang/*.java 

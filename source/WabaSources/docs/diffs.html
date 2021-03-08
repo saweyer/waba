@@ -1,0 +1,114 @@
+<html><head><title>Implementation Differences</title></HEAD><body bgcolor=white>
+
+<h2>Implementation Differences between Waba for the Newton and Plain Waba</h2>
+
+<h3>Window Sizes</h3>
+<p>A great many Waba applications expect the window size to be 160x160, not including the border and decorations.  However, Waba for the Newton applications (like WabaCE apps) can have all sorts of arbitrary window sizes -- just specify the size you want in the /w and /h flags in the Java version of Exegen.
+
+<h3>Unicode</h3>
+<p>Internationalization is severely broken on most versions of Waba. But not on Waba for the Newton, which should Just Work.  If you discover any difficulty in drawing expected Unicode characters or inputting them, please let us know.
+
+<h3>Drawing</h3>
+<p>Newton drawing has a lot of overhead.  In order to speed things up, Waba for the Newton calls its <b>:DoDrawing()</b> method every time it receives an event, and leaves the method after the event is completed.  This on occasion causes the odd Waba application to not draw quite right.  If so, you can turn off this efficiency feature by unchecking "Faster Drawing" in the app's preference panel.  Also, some poorly-written Waba applications assume that they have total control of the screen and that another window will never obscure part of their application.  Thus they don't properly redraw when the obscuring window is moved or closed.  If you can stand the efficiency hit and extra memory consumption, some of this can be alleviated by turning on "Buffer" in the app's preferences panel.  Sorry 'bout that.
+
+<h3>Libraries</h3>
+<p>In ordinary Waba, you have to package into your app all the classes you use except for those in the standard <b>waba.*</b> distribution.  This is not the case on the Newton.  Waba for the Newton has the concept of <i>shared libraries</i> of classes which register themselves globally on the Newton machine.  When a virtual machine needs classes, it first checks with the application for the classes.  If the application doesn't have a class, then the virtual machine starts going through the libraries looking for it.  Only after exhausting all the libraries does the virtual machine issue an error.  The idea behind this is that it makes applications significantly smaller, as they all share a central repository of common classes.
+
+<h3>java.lang.Object</h3>
+<p>Unlike standard Waba, the methods <b>Object.equals(...), Object.toString(...),</b> and <b>Object.hashCode()</b> are additionally supported.
+
+<h3>java.lang.String</h3>
+<p>Unlike standard Waba, the methods <b>String.equals(...)</b> and <b>String.hashCode()</b> are additionally supported.
+
+<h3>newton.Callback</h3>
+<p>Callback is part of the <a href="NSWabaAPI.html">NSWabaAPI</a>, a package which allows Waba developers to access practically any feature of NewtonScript or the underlying Newton system.  Callback in particular implements wrappers for Waba methods which can be used as NewtonScript callback functions.
+
+<h3>newton.NS</h3>
+<p>NS is part of the <a href="NSWabaAPI.html">NSWabaAPI</a>, a package which allows Waba developers to access practically any feature of NewtonScript or the underlying Newton system.  NS gives auxillary access to basic Newton mechanisms.
+
+<h3>newton.Ref</h3>
+<p>Ref is part of the <a href="NSWabaAPI.html">NSWabaAPI</a>, a package which allows Waba developers to access practically any feature of NewtonScript or the underlying Newton system.  Ref is the class which represents NewtonScript objects, everything from integers to strings to arrays, frames, and functions.
+
+<h3>waba.fx.Font</h3>
+<p>Waba developers aren't very careful about their font choices -- they typically pick Helvetica 12pt, which they think for some reason means "the PalmOS font" (PalmOS's font is closer to Helvetica 8pt).  Other lazy Waba programmers have done other nasty Font stuff. As such, we've had to hack the Newton implementation of Font.  Here's how we've got it set up presently:
+
+<ul>
+<li>If the font name is null, then the font maps to System (Espy) 9pt with a plain style.
+<li>If the font name is "Helvetica" or "NewtonDefault" and the point size is <= 12pt, then the font maps to System (Espy) at 9pt regardless of the point size requested.
+<li>Otherwise, "Helvetica", "Espy", "System", and "NewtonDefault" map to System (Espy). 
+<li>"Geneva", "Simple", and "Arial" map to Simple.
+<li>"Fancy", "Times", "New Times Roman", "New York", and "NewYork" map to Fancy.
+<li>"Handwriting" and "Casual" map to Casual.
+<li>Other fonts map directly to their names.
+<li>Unknown fonts will probably be displayed as Casual.
+</ul>
+
+<p>Unlike in normal Waba, you can also specify additional Newton styles beyond <tt>Plain</tt> and <tt>Bold</tt>.    You may specify a combination of any of the following styles by adding their respective values: Bold=1, Italic=2, Underline=4, Outline=8, Superscript=128, Subscript=256.
+
+<p>Sean is proposing a replacement for the Font object which makes it less susceptible to bad programming style on behalf of non-Newton Waba developers.
+
+<h3>waba.fx.Graphics</h3>
+<p>The method <b>Graphics.copyRect(...)</b> is only supported if you turn on "Buffer" in the application's preferences panel.
+
+<h3>waba.fx.Image</h3>
+<p>The method <b>Image.setPixels(...)</b> is not presently supported.  Also: bugs in the Newton's quickdraw code may make it difficult to draw a grayscale image without the Newton insisting on converting it to black-and-white.  We welcome your testing of this issue -- we've not nailed down exactly the problem yet.  Contact <a href="mailto:sean@cs.gmu.edu">Sean</a> about this.
+
+<h3>waba.fx.Sound</h3>
+<p>The method <b>Sound.beep()</b> is supported, though it can be turned off by setting "Mute" in the app's preferences.  The method <b>Sound.tone(...)</b> is not presently supported.  We have written the code for this method for the MP2x00 and eMate, but bugs in the Newton's synchronous synthesizer code make it impossible to use without the Newton leaking memory and eventually hanging.  So presently the SoundTone method has been stubbed out, sorry.
+
+<h3>waba.fx.SoundClip</h3>
+<p>SoundClip is not presently supported.
+
+<h3>waba.io.Catalog</h3>
+<p>Waba catalogs are ordinary Newton soups, and are saved with the Newton symbol <tt>waba:<i>uniqueSym</i>:<i>name</i></tt>, where <tt><i>name</i></tt> is the name requested by the Waba application, and <tt><i>uniqueSym</i></tt> is its unique symbol.  Typically the unique symbol is <tt>waba:<i>foo</i></tt>, where <tt><i>foo</i></tt> is the executable file name specified by the Exegen application.  Yes, that means that "waba" appears twice in the symbol.  :-)  
+
+<p>The method <b>Catalog.addRecord(...)</b> is not handled quite as specified in Catalog.java.  On the Newton you cannot easily specify the order in which soup (catalog) entries are added; you can only do tricks like this with indices.  So the Newton's implementation of addRecord() adds a record to <i>somewhere</i> in the catalog, but not necessarily to the end.
+
+<p>Newton soups do not have shared or exclusive locks.  Thus the Newton implementation of the method <b>Catalog.setRecordPos(...)</b> ignores any locking or unlocking.
+
+<p>The maximum legal record size in Waba for the Newton is presently 30,000.  Sean is proposing some fixes for Waba's Catalog specification.
+
+<h3>waba.io.File</h3>
+<p>File is not supported and we do not intend to support it in the future.
+
+<h3>waba.io.Serial</h3>
+<p>The current Serial implementation, written in pure C++, is thanks to Paul Guyot.  Sean has identified some crashers in the code, but it basically works at this point, very impressive!  Contact <a href="mailto:pguyot@kallisys.net">Paul</a> with any bug reports.  You may also contact <a href="mailto:sean@cs.gmu.edu">Sean Luke</a>, but please contact Paul as well. Some specifics:
+
+<p><b>Serial Port Number:</b>
+0 means the default port depending on your machine. 
+This is almost certainly the external serial port.
+1 to 7 means the seven serial ports selectors defined in the documentation:
+
+<p><pre>
+1 - External Serial             'extr'  (SCC channel 0)
+2 - Built In IR                 'infr'  (SCC channel 1)
+3 - Built In Modem              'mdem'  (SCC channel 2)
+4 - PCMCIA Slot 1               'slt1'
+5 - PCMCIA Slot 2               'slt2'
+6 - PCMCIA Any Slot             'slot'
+7 - Built In Extra              'tblt'  (SCC channel 3 ?)
+</pre>
+
+<p>Anything other integer value is passed directly to the Newton endpoint.
+For example, if you provide 0x65787472 ('extr' ), you'll have the external serial port.  This feature was added by Paul to make it possible for people to add new low-level serial port facilities in the future.  If you specify a value outside the 0...7 range and it does not correspond to a specific serial port, then the Serial instance will start closed and you will not be allowed to write to it.   
+
+<p><b>Serial port speed:</b>
+The speed is the numerical value in bits per seconds as in Waba for PalmOS.
+The Newton APIs defines speed from 300 bps to 230400 bps. As is the case for PalmOS, if you set your bits per seconds value to 0, Waba for the Newton will default to 9600 bps.  For the low-level Newton hackers out there, any value outside the 300...230400 range is passed directly to the endpoint.  Hence, if you put 1, you'll get external clock special speed. Please note that there is no way to use external clock divisor.
+
+<h3>waba.io.Socket</h3>
+<p>Socket is not yet supported.  <a href="mailto:weyer@kagi.com">Steve Weyer</a> has written a NewtonScript-based socket implementation; however it is not yet in the Waba distribution, and Steve thinks it's too slow and is hoping that <a href="mailto:pguyot@kallisys.net">Paul Guyot</a> will be able to make some small changes to his C++ Serial code and get sockets working.  Paul's pretty busy right now with his ATA driver so we don't know if that's gonna happen any time soon.
+
+<h3>waba.io.Stream</h3>
+<p>Waba's stream has blocking reads and writes, which can cause no end of frustration for Socket and Serial programs (the Newton needs asynchronous callbacks, which are generally incompatible with blocking reads and writes).  If you do not get all the data you had asked for on a read, try setting a timer, releasing control of the event loop, and requesting another read again when the timer fires.  Additionally, there's no way to tell if you've reached EOF or if it's some other error!  Sean is proposing some fixes for Waba's Stream specification along these lines.
+
+<h3>waba.sys.Vm</h3>
+<p>Waba for the Newton adds two methods to the Waba spec designed to assist in dynamic class loading: <b>Vm.getClassName(...)</b> and <b>Vm.makeInstance()</b>.  <p>Additionally, <b>Vm.setDeviceAutoOff(...)</b> is not supported, <b>Vm.exec(...)</b> launches an application without terminating the Waba process, <b>Vm.getPlatform(...)</b> returns <tt>NewtonOS</tt>, <b>Vm.isColor()</b> returns false for black-and-white Newtons regardless, and true for grayscale Newtons only if "Gray" is turned on in the application's preferences panel.
+
+<h3>waba.ui.Welcome</h3>
+<p>Welcome is never used in Waba for the Newton; its function is performed instead by the About panel.
+
+<br>
+<br>
+<br>
+</body></html>

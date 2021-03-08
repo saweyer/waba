@@ -1,0 +1,125 @@
+<html>
+<head>
+	<title>Understanding the Newton Waba Virtual Machine</title>
+</head>
+<body>
+	<h2>Understanding the Newton Waba Virtual Machine</h2>
+	<p>I won't beat around the bush: there's a LOT to explain here. You need to understand how NewtonScript works, how C++ on the Newton works, and how the Waba virtual machine works in general in order to grok what I'm going to say below.
+		<h3>Setting Up</h3>
+		<ol>
+			<li>Download Apple's Newton C++ compiler. Sorry, this means you'll need to use a Mac. Place the Waba folder (the folder which contains the Waba project) inside the NCT_Projects:Demos_NCT folder, so it sits in there with the other demos.
+			<li>Fire up the C++ compiler ("MPW Shell"). Using Newton C++ Tools: Select Root Directory, tell it to use the NCT_Projects folder as the root. You should get a submenu pop up that says Demos_NCT:Waba. Choose that. Also choose "Build With <b>No</b> Debug", very important. You should be able to now compile the Waba C++ source just by selecting Build Current Project (command-J). The C++ code compiles into an object file called Waba.ntkc. Keep it where it is (in the ObjectsNoDebug folder).
+			<li>Download the Newton Developer's ToolKit. (NTK). You need to be familiar with this in order to do Newton development at all. You can load and compile the Waba project, once you've compiled the C++ code, by opening the Waba project file and compiling it (command-1). For more information, consult Apple's docs.
+			<li>Read the provided documentation with the C++ compiler THOROUGHLY. You should understand what RefVar, Ref, RefArg, RefStruct* are, what MakeString does, what MakeInt does, what NSCallGlobalFn does, what AllocateFrame does, what NSSend does, etc., etc.
+			<li>Download WabaSoft's white papers and its VM source code -- the source code consists of four small and elegant files (waba.c, nmport_a.c, nmport_b.c, and nmport_c.c) which have tons of commented documentation that will make it much easier for you to understand the beast which we have created here.
+		</ol>
+		<h3>
+			The General Workings of the Newton Waba VM</h3>
+	<p>The VM is written partially in C++ and partially in NewtonScript. On the Newton, NewtonScript applications "live" in the NewtonScript heap, and C++ applications "live" in the C++ heap and stack space. The only way for C++ apps to draw on the screen, or receive events, or whatever, is to ask NewtonScript to do it for them. That's what the VM does.
+	<p>When a Java app package fires up the VM, it hands the VM a reference to a NewtonScript object which knows how to give the VM some Java classes when the VM asks for them. It also gives the VM the name of the "main" class. The VM loads that class and runs it; Waba apps are required to, practically first thing, create a single window called (in Java) the MainWindow, which the Waba VM stashes away in a C++ instance variable called globalMainWin. To create a window, the VM tells NewtonScript to use a certain Window proto (defined in the WabaWindowTemplate file), and BuildContext() on that proto to create a Window. It's in this window that the VM does all its scribbling and receives events from NewtonScript. Finally, when either the window is closed or the Java program tells the VM to quit, the VM shuts down and cleans up. Here's a picture of this process (the (5) is in parentheses indicating it's done over and over again):
+	<p><img src="ControlFlow.gif">
+	<p>Because part of the VM lives in the NewtonScript world and (most) of the VM lives in the C++ world, different chunks are allocated in different ways. The C++ heap and stack holds the Java runtime, and optionally it holds C++ class copies (depending on the compiler flag you use, we're presently not using that). The NewtonScript heap is where bitmaps, windows, fonts, graphics shapes, etc. are allocated to serve the bidding of the Java code. Out on Flash RAM sits the Java class files, read-only bitmaps which came with the Java app, and a few other things. Here's a picture of how everything is allocated:
+	<p><img src="Allocation.gif">
+	<p>Of course, there are many Waba app packages, one per Waba application you have on your Newton. One important item not mentioned is the Waba class library. Waba provides a small collection of classes from which you may create applications. This is equivalent to C's "stdlib". You don't include these classes with your application -- they're stored in an archive called the Waba Library (which Steve Weyer is presently calling "lib/waba"). When the VM asks for classes, the object that fetches classes looks first in the Java app's class collection out on Flash RAM. If it's not there, then the fetcher looks in a set of libraries -- presently the only library is the Waba Library, but if you have a need for a library of your own, to save space say, you can add libraries. Ask Steve Weyer how this is done.
+		<h3>Relevant Files</h3>
+	<p><b>C++ Files. </b>Waba.cp is the main Waba VM. waba.h holds the interface for the VM class, plus lots of constants and typedefs. utf8.cp holds some Newton unicode conversion stuff for Waba. nmnewt_a.cp holds basic low-level functions (memory allocation, deallocation, copying, etc.). nmnewt_b.cp holds functions for starting up, shutting down, and sending events to the VM, plus code for the VM to request and manage class data. nmnewt_c.cp contains functions and stubs for all of the native Java methods that make requests of the Newton. Waba.exp specifies the C++ functions which NewtonScript may access.
+	<p><b>C++ Compiler support. </b>BuildResults, Constants, FilesInBuild, Makefile, Makeout.
+	<p><b>C++ compile results. </b> Found in the ObjectsNoDebug folder. The waba.ntkc file is the critical one.
+	<p><b>NewtonScript project files. </b> Waba is the project file. Constants holds constants. InstallScript and RemoveScript are self-explanatory. MainWindow is unused now. Prefs is the proto for the preferences window and subsystem. VMWin is the main window (the "Waba for the Newton" window), plus all the API access functions. WabaWindowTemplate is the proto for the Waba window the VM generates. Note that it's all text, not Layout format. This made it easier to pass to the VM for me. It's got code for routing events to the VM, and doing the VM's bidding for a variety of things.
+	<p><b>Icons and images. </b>Found in the icons directory.
+	<p><b>Documentation. </b>Found in the Documentation directory.
+	<p><b>Waba class files, original WabaSoft VM files, source code for many test apps. </b> Found in the aux directory.
+		<h3>How the VM allocates and retains Newton Stuff: RefStruct*'s, Hook Variables, etc.</h3>
+	<p>Things like styleframes, bitmaps, class data, and windows are all items generated by NewtonScript function calls. The VM needs to stash this stuff away inside Java classes. To create NewtonScript objects and hold onto them or associate them with various Java instances, the Waba VM creates a lot of RefStruct*'s.
+	<p>RefStructs are allocated and freed (using new and delete). Although you can access RefSructs directly, I don't recommend it. Instead The Newton Waba VM has put together a few defines meant to make it easy for you to access them, modify them, initialize them, and deallocate them:
+		<ul>
+			<li><tt>initRefStruct(RefStruct** foo)</tt> This initializes foo to be used with the other three functions below. (In fact, all this function does is set foo to NULL, but we may change it to be more functional later, so use <tt>initRefStruct(&amp;blah)</tt> rather than saying <tt>blah=NULL</tt>). (blah is a RefStruct*)<br>
+				<br>
+			<li>
+				<tt>getRefStruct(RefStruct** foo)</tt> This returns the current contents of foo as a RefVar. If foo's never been set to anything, then this function returns NILREF. As in: <tt>RefVar blahValue = getRefStruct(&amp;blah);</tt> (blah is a RefStruct*)<br>
+				<br>
+			<li>
+				<tt>setRefStruct(RefStruct** foo, RefArg val)</tt> This sets the contents of foo to val. As in: <tt>RefVar blahvalue = .... ; setRefStruct(&amp;blah,blahvalue);</tt> (blah is a RefStruct*).<br>
+				<br>
+			<li><tt>deleteRefStruct(RefStruct** foo)</tt>. This deallocates any RefStruct that had been created in foo as a process of the above three functions. As in: <tt>deleteRefStruct(&amp;blah);</tt> (blah is a RefStruct*)<br>
+				<br>
+		</ul>
+	<p>As long as you stick to using these four functions, rather than explicitly allocating and deleting your own RefStructs, things will be much cleaner for you. Please use them throughout.
+	<p>There are three places where the VM keeps pointers to RefStructs it's allocated to use in various tasks: in hook variables associated with certain Java instances; in the global VM instance data itself; and in a special array of RefStruct pointers to hold onto Java class data.
+		<ul>
+			<li><b>Hook Variables. </b> Using four RefStruct-modification functions below, you can allocate RefStructs and stash pointers to them in the four-byte Hook Variables which the Waba VM provides. What's a Hook Variable? Well, whe the VM creates instances of certain Java classes, the Java constructors in turn call a "native" constructor, typically called _nativeCreate(). This in turn calls a native C++ member function, typically called FooCreate, where Foo is the classname. (For example: WindowCreate(Var stack[])). Why in the world would you want this? Well, for the Window class for example -- you might want to be creating a NewtonScript window and keeping a reference to it (in a RefStruct) to prevent it from getting garbage-collected, wouldn't you? Plus, you'll need to access that window many times in the future, no? You do this through Hook Variables.
+				<p>
+					Java instance data is stored in Java instances as an array of Vars. A Hook Variable is an extra Var stashed at the end of the allocated Java Instance, which the Java code can't see but which you can use to stash whatever you like inside. I've modified Var (it's a union), so one of the things you can stash there is a pointer to a RefStruct. So for example, if you have a Java class that looks like this: <br>
+					<br>
+					<tt>public class Foo { public int x; public Bar y; }</tt>
+				<p>...then every instance of Foo consists of a two-Var array, where array[0].intValue is x, and array[1].obj is a WObject reference to y -- for more information on this, see WabaSoft's waba.c and nmport_c.c files. So anyway, imagine if you've told the VM to tack a hook variable for a RefStruct* you need to have attached to every instance of Foo. In all your methods, you'll get handed an array called <tt>Var stack[]</tt>. stack[0].obj is a reference to the instance that the native method got called on (the other stack[...] items are the parameters passed to the native function).
+				<p>Since Foo has two instance variables (x and y), our single hook variable for Foo lives as the third item in our Foo instance (x is #0 and y is #1). You get the array which represents the Foo instance with <tt>objPtr(stack[0])</tt>, thus the RefStruct* is accessible as <br>
+					<tt>objPtr(stack[0])[2].refStruct</tt>
+				<p>
+					You need to begin by initializing your RefStruct when the Foo instance is constructed. In your FooCreate native method, you could write<br>
+					<br>
+					<tt>initRefStruct(&amp;(objPtr(stack[0])[2].refStruct));</tt>
+				<p>Perhaps then you want to set it to an initial value. For example, to set it to an empty NewtonScript frame, you'd say<br>
+					<br>
+					<tt>setRefStruct(&amp;(objPtr(stack[0])[2].refStruct), AllocateFrame());</tt>
+				<p>In other native methods called on this instance, you'd access the RefStruct, or maybe set it to something new (using setRefStruct). To access the RefStruct, you could do:<br>
+					<br>
+					<tt>RefVar myref = getRefStruct(&amp;(objPtr(stack[0])[2].refStruct));</tt>
+				<p>I personally find this a bit confusing, so I make #defines to help me out (WabaSoft did that too). You can see them as stuff like WOBJ_NewtonBitmap(o), a reference to the hook in Bitmap objects for example. See nmnewt_c.cp.
+				<p>
+					So, how do you tell the VM to keep a Hook Variable around for you, and if Waba doesn't have finalizers, how do you deallocate the Hook Variable when the Java instance gets garbage-collected? Simple. In the waba.h file, there's a const ClassHook array called classHooks[]. Each slot in the array consists of a struct off three items: the class name for the class you want a hook in, a number indicating what your destructor function is (we'll get to that in a sec), and lastly the number of class hooks you want per instance of that class.
+				<p>The purpose for the destructor function number is this. There's a function in waba.h called callDestroyFunc. In there, you'll see there is a case statement by number, consisting of the particular destructor method that should be called. The method gets handed the object (a WObject), and it's responssible for deleting the hooks in the object. So you might set a slot in the classHooks[] array just before the NULL slot that looks like this (I'll assume three slots have already been done, so you're slot #4): <br>
+					<br>
+					<tt>{ "waba/ui/Foo"/* or whatever the classname is*/, 4, 1},</tt>
+				<p>Now in the callDestroyFunc function, you add a case statement like so: <br>
+					<br>
+					<tt>case 4: vm->FooDestroy(obj); break;</tt>
+				<p>Lastly, you create a VM::FooDestroy(WObject obj) destructor method, and in there you wipe it out with<br>
+					<br>
+					<tt>deleteRefStruct(&amp;(objPtr(obj)[2].refStruct));</tt>
+				<p>
+					You might wonder why there are case statements instead of just using C++ method pointers. After all, the original Waba VM used function pointers. The answer is: Apple's stupid ARMCPlus compiler chokes and dies with an internal error when it sees method pointers. So we have to do this with a big case statement instead. You think it's dumb for the destructors, check out the native method array nativeMethods[] and its accompanying massive case statement, callNativeMethod(...). What a hack!<br>
+					<br>
+			<li>
+				<b>Variables in the VM Instance</b> Some RefStruct data is global to the whole VM, or needs to be accessed by lots of functions and not just native functions for a particular instance. In this case, we stash it in the VM Instance itself. See for example <tt>classFetcher</tt>, a RefStruct I use to hold a reference to the application which fired me up in the first place, and from which I request Java classes as I discover I need to load them. <tt>classFetcher</tt> is defined in waba.h. Also, you'll find that in the VM() constructor we do an <tt>initRefStruct(&amp;classFetcher)</tt>, and in the VM::VMStopAppNewton() method we call <tt>deleteRefStruct(&amp;classFetcher)</tt> to clean it up before we get freed. Now any method in the VM can reference classFetcher using the getRefStruct or setRefStruct functions. <br>
+				<br>
+			<li>
+				<b>References to Class Data</b> one last RefStruct location deserves mentioning, in case you're wondering about it. There are two ways that the Newton Waba VM can handle the raw class data it gets from the app that fired it up. The first is to make copies of the class data into allocated chunks in the C++ heap. This uses up heap, but it's safe because we control it. The other way is to cheat, and just keep pointers out into the memory where the class data was, out on Flash RAM or wherever. That's dangerous, but it seems to work fine. The VM by default does the second one unless the <tt>cPlusPlusHeap</tt> flag is defined. So anyway, in the first case the VM allocates space for the classes and keeps them in an array in the VM instance. In the second case, the VM allocates RefStructs, which point to the NewtonScript versions of the class data and lock it (to keep it from moving or getting garbage collected) and stores THEM in the array. You can see all this in action in the nativeLoadClass() function.
+		</ul>
+		<h3>So You're Trying To Fill Out a Stubbed-Out Native Function...</h3>
+	<p>The first thing to do is look at where the native function is being called from in the Java source. Take for example the stubbed-out function <tt>Var VM::ImageSetPixels(Var stack[])</tt>. This the native method that's called for the Java function <tt>waba.fx.Image.setPixels(...)</tt>, defined as so: <br>
+		<br>
+		<tt>public native void setPixels(int bitsPerPixel, int colorMap[], int bytesPerRow, int numRows, int y, byte pixels[]);</tt>
+	<p>The first Var in the stack[] represents the Image instance itself. Images have a hook (the underlying NewtonScript bitmap). To access this hook, I've set up a #define to help you. You can get the bitmap with <br>
+		<br>
+		<tt>RefVar bitmap = getRefStruct(WOBJ_NewtonBitmap(stack[0].obj));</tt>
+	<p>To access the first parameter (<tt>bitsPerPixel</tt>), it's an int, so you access it as <tt>stack[1].intValue</tt>. The second parameter (<tt>colorMap[]</tt>) is a Java array of ints. To access items in this array, you should first get a handle on the array itself, with something like <tt>Var myarray = objectPtr(stack[2].obj);</tt>You can then find the length of the array with <tt>int len = WOBJ_arrayLenP(myarray);</tt>. This is an array of Vars. In this case, the Vars are holding ints, so you get item #x out of the array with <tt>int item_x = WOBJ_arrayStartP(myarray)[x].intValue;</tt>. And so on. By the way, bytes, shorts, and bools are all stored as ints. For more information, read WabaSoft's code for their original waba.c file and nmport_b.c and nmport_c.c files, they're heavily commented with useful info.
+	<p>In general, native functions usually don't return values. Well, they sometimes do (as in IsColor()). But most don't. You return a value as a Var. If you're not returning anything, just set the Var.obj to 0 (or NULL) and return that.
+		<h3>Dealing with Strings</h3>
+	<p>You'll deal at some point with four different kinds of strings: instances of the String class (stored as WObjects), UtfString structures (very simple, they contain a .str char* consisting of a UTF-8 encoded Unicode string, plus a .len integer giving the length), char* pointers, and NewtonScript string objects (stored as Refs, RefVars, etc.). To make a String instance from a UtfString, use <tt>createStringFromUtf()</tt>. To make a String instance from a char*, use <tt>createString()</tt>. To make a UTF string from a String instance, use <tt>stringToUtf()</tt> with the flags <tt>STU_NULL_TERMINATE | STU_USE_STATIC</tt>. To make a UtfString from a char*, use <tt>createUtfString()</tt> -- however, this just swallows the char*, instead of copying it.
+	<p>The <b>utf8.cp</b> file consists of functions for converting between these strings and Newton Strings. The beauty of this is that String instances AND Newton strings are both garbage collected, so you don't have to deallocate them! Just convert one to the other. To make a String instance from a Newton string, use <tt>NewtonStringToWabaString()</tt>. To make a Newton String from a String instance, use <tt>WabaStringToNewtonString</tt>. To make a Newton String from a UTF8 string, use <tt>UtfStringToNewtonString</tt>.
+		<h3>Features for Debugging</h3>
+	<p>It's not easy to debug the VM -- NewtonScript error messages are cryptic enough, but C++ gives you basically no information at all. You'll have to resort to inserting lots of Print-statements to track down where the error is coming from. There are three flags provided in the VM for debugging. In the Constants file of the NewtonScript section of the VM, there is a debug flag which globally turns on/off all of the debugging messages the VM produces (and it produces quite a few). Additionally, in the nmnewt_a.cp file of the C++ section of the VM, there is a DEBUGGING_NEWTOS flag which turns on/off debugging messages produced by the C++ section alone. To see C++ messages, both flags must be turned on. To see just NewtonScript debug statements, only the Newtonscript debug flag need be on. Lastly, many Java programs request timed callback functions (AddDelayedSend) over and over to do repetitive timing events. This produces a large number of messages in the inspector when these flags are turned on. You can tell the VM to ignore such requests for callback functions by turning on the C++ flag NO_TIMER, also located in nmnewt_a.cp.
+	<p>To take advantage of debugging messages in the NewtonScript section, you can write something like: <br>
+		<br>
+		<tt>if debug then Print(theStuffYourePrinting);</tt>
+	<p>
+		To take advantage of debugging messages in the C++ section, two defines are provided: PRINTSTR(str) and PRINTOBJ(ref). PRINTSTR(str) takes an ordinary C string and prints it out to the inspector, as in <br>
+		<br>
+		<tt>PRINTSTR("hello, there!");</tt>
+	<p>...while PRINTOBJ(ref) takes a NewtonScript object reference (a Ref, RefArg, RefVar, or RefStruct), and prints it to the inspector, as in <br>
+		<br>
+		<tt>PRINTOBJ(getRefStruct(&amp;windowProto));&nbsp;&nbsp;&nbsp;&nbsp;// prints the proto for the window<br>
+		PRINTOBJ(NSCallGlobalFn(SYM(GetRoot)));&nbsp;&nbsp;&nbsp;&nbsp;// prints the NS root frame<br>
+		PRINTOBJ(MakeInt(x));&nbsp;&nbsp;&nbsp;&nbsp;// prints the C++ int variable x</tt>
+	<p>...indeed, PRINTSTR(foo) is simply defined as PRINTOBJ(MakeString(foo)).
+	<p>The VM also has a special Newton-specific Java error message you can use to stop whatever the VM is currently doing and issue an error as Notify dialog (and also print the error out to the Inspector). To issue this kind of error, you'd write: <tt><br>
+		<br>
+		UtfString s1 = ....;&nbsp;&nbsp;&nbsp; // the createUtfString("foo") function is useful here <br>
+		UtfString s2 = ....; <br>
+		VmError(ERR_NewtOSError,NULL, &amp;s1, &amp;s2);&nbsp;&nbsp;&nbsp;// s1 concatenated with s2 forms our error message text </tt> <br>
+		<br>
+		<br>
+		<br>
+		<br>
+</body> </html> 

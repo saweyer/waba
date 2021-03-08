@@ -1,0 +1,34 @@
+<html>
+<head>
+<title>Known Bug List</title>
+</head>
+<body bgcolor=white>
+<H2>Known Bug List (Waba for the Newton)</H2>
+
+<p>If you have a bug to report that's not on this list (see below for reporting Socket/Serial bugs), feel free to contact <a href="mailto:sean@cs.gmu.edu">Sean Luke</a>.
+
+<H3>Bugs</H3>
+
+<ol>
+	<li>Waba uses a chunk of the C++ memory to run.  This memory is also used by windows (for redrawing, closing, and opening), Newton Internet Enabler, bitmaps, the sound system, Paul Guyot's ATA card driver, etc.  The more Java Heap/Stack space you allocate in Waba apps' preference panels, the more memory is consumed.  The negative results of this are as follows:
+	<ol>
+	<li>On a machine with limited memory (like a MP2K), if you open several Waba VMs simultaneously, moving windows around starts taking a long long time.  Eventually you cannot move windows at all -- they appear "pinned in place" as it were.
+	<li>Some Newton operations and applications leak C++ memory (they request the memory but forget to give it up when they quit).  This can cause Waba apps to run more slowly as the C++ system struggles to get them the memory they need, particularly if they're using lots of images.  You can see this effect sometimes when you open the Santa game and it seems to scroll more slowly.  Similar effects happen with the Frog Against the Machine game.  You can really only fix this problem by rebooting the Newton.
+	<li>Paul's ATA card driver uses enough memory too cause Waba apps to run slowly if they use a lot of images (like Santa or Frogs Against the Machine).
+	<li>If an error causes the Waba application to die or otherwise stop working, closing the Waba window may not free up the C++ memory that Waba had allocated.  It can get leaked.  We've done our best to prevent this from happening in most unusual cases, but it still might occur.  You may not even notice anything (or care) if you have something other than an MP2K.  This can cause windows to open or close more slowly (or not at all), freezes, or other odd stuff.  Rebooting the Newton will fix the problem. 
+	</ol>
+	<li>Loaded images are converted into dithered black and white no matter what. Oops!
+	<li>NewtOS 2.0 machines have a NewtonScript bug that results in incorrect handling of the OR and XOR operations when drawing lines.
+	<li>Socket and Serial Port code still is shakey -- report any discovered Socket/SerialPort bugs to <a href="mailto:pguyot@kallisys.net">Paul Guyot</a>.
+	<li>Even though Sean thinks the Catalog code is looking good, Frogs Against the Machine still isn't using the catalogs correctly to store its high scores, and FATM's high-score soup just grows and grows a little at a time.  Dunno why, we don't have the FATM code to examine.
+	<li>"foo" + null will generate an error.  That's because Waba's StringBuffer.append(obj) doesn't check to see if obj is null before calling obj.toString().  We'll get that fixed next time.
+</ol>
+
+<H3>NOT Bugs</H3>
+
+<ul>
+<li> WavingDuke's "about" panel is clipped.  It does this on the Palm also.  It's a programming error, not a bug in Waba.
+</ul>
+
+</body>
+</html>

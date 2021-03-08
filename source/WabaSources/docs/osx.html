@@ -1,0 +1,328 @@
+<html><head><title>Building Newton Waba Apps on MacOS X</title></head><body bgcolor=white>
+
+<h2> Building Newton Waba Apps on MacOS X </h2>
+
+My (<a href="sean@cs.gmu.edu">Sean Luke</a>'s) experience in Waba App development is almost solely on MacOS X, which I have used to develop the Waba VM from its inception.  Since <a href="weyer@kagi.com">Steve Weyer</a> completed the Newton modifications to the Java versions of Warp and Exegen, waba app development is a snap.  Steve has graciously set up a Java GUI for doing app development, but I have found it easier, on MacOS X anyway, to use the command line through the Terminal window.  Thus this tutorial will assume that you understand how to set up Java, what a CLASSPATH is, where the Terminal program is (look in /Applications/Utilities), and how to use basic UNIX commands.
+
+<p>BTW, except for the mention of PackType, everything in this tutorial will work just fine on any UNIX box, not just MacOS X.  Well, you may need to tweak the JIKESPATH a little.  Also, at the end of this tutorial is an <a href="#addendum">addendum</a> which discusses generating non-Newton Waba packages for PalmOS and WinCE using these same tools.
+
+<p>Here we go: Waba application development in just, er, 14 easy steps.
+
+<ol>
+<li>Before you start, you might find it convenient to install <a href="http://softrak.stepwise.com/display?pkg=1687&os=20">jikes</a>, a Java compiler written in C++ by IBM.  It's ten times as fast as javac, and it has much better error messages.  Sometimes I'll say "jikes" instead of "javac"  -- you can use them interchangeably.
+
+<li>Fire up the Terminal program.
+
+<li>Set up your java class environment.  I've generally found it useful to create a ~/java directory, and inside there create a ~/java/jar directory.  Any subdirectories (except for ~/java/jar) inside the ~/java directory get dumped into the CLASSPATH.  Furthermore, all the jar files inside the ~/java/jar directory get added to the CLASSPATH.  Lastly, jikes needs to know where this stuff is too, plus it needs to know where Apple keeps its main class libraries hidden. To do all this, first create the ~/java and ~/java/jar directories, and then edit your ~/.tcshrc file, adding the lines:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+setenv CLASSPATH .:${HOME}/java/
+foreach i (${HOME}/java/jar/*.jar)
+        setenv CLASSPATH ${CLASSPATH}:$i 
+end
+setenv JIKESPATH ${CLASSPATH}
+foreach i (/System/Library/Frameworks/JavaVM.framework/Versions/1.3/Classes/*.jar)
+        setenv JIKESPATH ${JIKESPATH}:$i
+end
+</pre></td></tr></table>
+
+<p>Remember that when you edit your ~/.tcshrc file, the underlying system will assume it's a <i>UNIX</i> text file, not a Mac one -- in other words, it should have linefeeds instead of carriage returns.  If you use pico or vi or emacs, things will work great.  Dunno about TextEdit.app.  ProjectBuilder will work but only if you modify its preferences.
+
+<li>Now you'll need to add some files to your ~/java/jar directory.  From the Waba for Newton distribution, add the files <b>wababin.jar</b>, <b>waba.jar</b>, and <b>wextras.jar</b>.  At present we don't have a <b>newton.jar</b> (for the NSWabaAPI), but if it's there as of your reading of this file, add that too.  The <b>wababin.jar</b> file contains the Java versions of Warp and Exegen, specially modified by Steve Weyer to produce Newton .pkg files out of your Java code.  Nifty!  The <b>waba.jar</b> and <b>wextras.jar</b> files contain the Java classes for the Waba and WabaExtras libraries.  The <b>newton.jar</b> file, if it exists, contains the Java classes for the NSWabaAPI library.  If this file exists, then we will have also created a <b>newton.pkg</b> package (or something like that), which has the code in Waba Library format, and you'll need to load that on your Newton along with the <b>wextras.pkg</b> and <b>waba.pkg packages</b>.  Be sure you're using Waba VM vesion 0.58 at least.
+
+<li>Close all your terminal windows and open up new ones (to let the ~/.tcshrc file run).  Or in your existing terminal window, type "source ~/.tcshrc".  Whatever.  If you've gotten  this far, then you should be able to pop up a terminal window and type 
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Warp
+</pre></td></tr></table>
+
+<p>...and you'll get back the following message:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+Waba Application Resource Packager for Java, Version Warp 1.50.0Nf
+Copyright (C) Rob Nielsen 1999. All rights reserved
+Newton modifications: Copyright (C) S. Weyer 2001. All rights reserved
+
+Usage: java wababin.Warp command [options] warpfile [files]
+
+Commands:
+   c   Create new warp file
+   l   List contents of a warp file
+   x   extract contents of a warp file
+
+Options:
+  /?   Displays usage text
+  /c   Override and assign PDB database creator (e.g. /c CrTr)
+  /f   Specify format flags: 1(pdb) + 2(wrp) + 4(pkg) + 8(ntk) + 16(Newton lib)
+  /r   If a directory is specified in the files, recurse any subdirs
+  /q   Quiet mode (no output except for errors)
+
+This program creates WindowsCE .wrp and PalmOS .pdb warp files,
+and Newton _.pkg and NTK .cls.txt files.
+For PalmOS, a PDB database name and PDB creator will be
+generated automatically from the name of the warp file.
+For Newton(.pkg), it used wababin/pkg/apptemplate__.pkg,
+and it creates myapp_.pkg file (intermediate file for Exegen)
+
+Warp will automatically check any class files for dependencies and add
+these files so you will only need to specify the main class file and
+everything else will be added automatically, even directly referenced
+.bmp files. (ie. Image im=new Image("rob.bmp"); )
+If no input files are specified, it will look for a .class file with
+the same name of the warp file you are creating.  
+
+Examples:
+   java wababin.Warp c helloApp
+   java wababin.Warp c helloApp *.class util\*.class
+   java wababin.Warp c helloApp *.class extra\
+   java wababin.Warp l helloApp.wrp
+   java wababin.Warp l helloApp.pdb
+   java wababin.Warp x helloApp.wrp
+   java wababin.Warp x helloApp.pdb
+</pre></td></tr></table>
+
+<li>Okay, we're ready to code.  Let's start by creating a simple Waba program, <b>WabaHelloWorld</b>.  In some directory you find convenient, create the following file, called <b>WabaHelloWorld.java</b>:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+import waba.ui.*;
+
+public class WabaHelloWorld extends MainWindow
+    {
+    public void onStart()
+        {
+        Label label = new Label("Hello, World!");
+        label.setRect(10, 10, 150, 30);
+        add(label);
+        }
+    }
+</pre></td></tr></table>
+
+<p>You can get much more information about programming Waba at the sites <a href="http://www.wabasoft.com">WabaSoft.com</a> and <a href="http://www.wabaworkbench.com">Waba Workbench</a>.  I'll assume you understand the basics of Waba class development, so this simple little program should need no explanation.
+
+<li>In a terminal window, <b>cd</b> to the directory where this java file is stored, and then type
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+javac WabaHelloWorld.java
+</pre></td></tr></table>
+
+<p>alternatively, if you're running <b>jikes</b>, you can type:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+jikes WabaHelloWorld.java
+</pre></td></tr></table>
+
+<p>...and if all goes well, it'll compile silently without any errors or warnings, creating a "WabaHelloWorld.class" file.
+
+<li>Step 5 introduced you to the "Warp" program.  This program takes Java code and packages it into special files which are then converted by the "Exegen" program into actual Waba executables on various platforms.  The warp file for NewtonOS is ".pkg~" (note the tilde -- this file is not a full .pkg file yet).  To create a Newton warp file, you simply type:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Warp c /f 4 WabaHelloWorld
+</pre></td></tr></table>
+
+<p>The "/f 4" tells Warp to only create a Newton warp file.  See the <a href="#addendum">addendum</a> below on how to make non-Newton Waba files.  You will get back a message which looks like this:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+Waba Application Resource Packager for Java, Version Warp 1.50.0Nf
+Copyright (C) Rob Nielsen 1999. All rights reserved
+Newton modifications: Copyright (C) S. Weyer 2001. All rights reserved
+
+warp files: WabaHelloWorld.pkg~ 
+...writing WabaHelloWorld.pkg~
+...adding: WabaHelloWorld
+...done
+</pre></td></tr></table>
+
+<p>If you would instead like to create a Waba for the Newton Library out of your classes instead of an application, you type:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Warp c /f 20 WabaHelloWorld
+</pre></td></tr></table>
+
+<p><b>IMPORTANT NOTE:</b>  As of the writing of this documentation, Steve's newton library system doesn't permit you to add new libraries as you like -- we'll get that fixed in the future.  So for now you're stuck just making applications.  :-)
+
+<li>Now is a good time to mention what classes Warp decides to package.  Warp looks recursively through the classes you mentioned on the command line, and finds all the classes they reference, and all the classes <i>they</i> reference, and so on, and packages all of them into its Warp file (and it'll print the classes out so you can see what's getting stuffed in there).  <b>However</b>, if a class is inside a <b>.jar</b> file instead of just hanging out somewhere in your CLASSPATH, then it won't get loaded -- Warp's not smart enough to extract classes from jar files.
+
+<p>Now, you can turn this to your advantage.  If you know that a class is in a library on your Newton, then you don't want to package it with your your application -- the VM will look it up in the Newton Library when your application is launched.  So it's good that the file isn't loaded.  However, if your class <i>isn't</i> going to be in a library, then you need to make sure it's not in a <b>jar</b> file.  For example, if we haven't yet gotten the NSWabaAPI packaged as a standard library on the Newton, then you'll need to directly include the Ref, Callback, and NS class files, and the way you do that is to make sure they're in your CLASSPATH but aren't in a <b>jar</b> file, so Warp loads and stuffs them into your warp file.  Got it?  Good.
+
+<li>Next, we need to convert the warp file into an actual living, breathing application.  This is done with the <b>Exegen</b> program.  Let's first look at the help printout for Exegen.  Type:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Exegen
+</pre></td></tr></table>
+
+<p>...and you should get back something like:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+Waba Launch Executable Generator for Java, Version Exegen 1.40.0Nf
+Copyright (C) Rob Nielsen 1999. All rights reserved
+Newton modifications: Copyright (C) S. Weyer 2001. All rights reserved
+
+Usage: java Exegen [options] exefile main-window-class warpfile
+
+Options:
+  /?   Displays usage text
+  /c   Override and assign PDC creator (e.g. /c CrTr)
+  /f   Specify format flags: 1(prc) + 2(lnk) + 4(pkg) + 8(ntk) + 16(Newton lib)
+  /h   Assign height of application's main window
+  /i   Assign PalmOS PRC icon (e.g. /i sample.bmp)
+  /l   Assign size of class heap (e.g. /l 10000)
+  /m   Assign size of object heap (e.g. /m 20000)
+  /p   Full path to directory containing warp file under WindowsCE
+  /q   Quiet mode (no output except for errors)
+  /s   Assign size of stack (e.g. /s 2000)
+  /t   Assign size of native stack (e.g. /t 50)
+  /w   Assign width of application's main window
+  /x   eXtracts parameter info/icon.bmp (PRC only); lists app info(PKG only)
+
+This program generates a WindowsCE application shortcut .lnk file,
+a PalmOS .prc application, and Newton .pkg and NTK .arg.txt files.
+.lnk and .prc files are used to launch (start up) a Waba program.
+.pkg file can be installed/run directly on Newton;
+.arg.txt is used to build a Newton application with NTK.
+
+File extensions are generated automatically. If you specify myapp as
+the exefile, myapp.lnk, myapp.prc, myapp.pkg, myapp.arg.txt will be created.
+
+The /w and /h parameters define the default width and height of the
+application's window. The value of 0 for either will cause the main window
+to appear at a default size which is different on each platform.
+
+The /p parameter defines the full path to the directory which will contain
+the warp file under WindowsCE. This path is placed in the shortcut (.lnk)
+file so the application will know where to find it's warp file.
+
+For PalmOS, if no icon is defined, a black box is used. Any icon given must
+be in .bmp format. A PalmOS PRC creator and PRC name will be assigned based
+on the warpfile and exefile respectively. The exefile must be 30 characters
+or less.
+
+The sizes specified are used by the WabaVM to determine how much memory
+to allocate for the app. The size of the class heap defaults to 14K
+The size of the object heap defaults to 8K. The size of the stack
+defaults to 1500 bytes. The size of the native stack defaults to 300 bytes.
+
+Examples:
+java Exegen /i s.bmp /p "\Program Files\Scribble" Scribble ScribbleApp scribble
+java Exegen /w 160 /h 160 /m 20000 Calc CalcWindow calc
+</pre></td></tr></table>
+
+<li>Exegen has a variety of flags which are useful for stuff like specifying the width and height of the window, and the default heap and stack sizes.  You can also specify that you want to generate the stuff for WindowsCE (a .lnk file), Newton (a .pkg file), or PalmOS (the .prc file, which must be distributed together with the .pdb file that Warp created).   Without any specification, Exegen just generates all three.  You can also optionally specify that you want a Newton library and not a Newton appliation, as I've mentioned before, presently that's not super useful until we fix some stuff.
+
+<p>Exegen also requires three strings, the "exefile", "main-window-class", and "warpfile".  The <b>main-window-class</b> is the classname of the main class which will get loaded when the Waba application is fired up.  This class <i>must</i> be a subclass of waba.ui.MainWindow.  The "exefile" is the name of the program on the Newton, or Palm, or WinCE box.  For the Palm, this must be a name less than 30 characters.  It's best to keep it short.  The "warpfile" is the name of the warp file (minus the .wrp, .pdb, or .pkg~ extension) that Exegen will use to create the program.  
+
+<p>As it turns out, these three are all conveniently the same thing for us.  Our class is called WabaHelloWorld, we want the Newton to display this name in the Extras drawer, and the warp file is WabaHelloWorld.pkg~.  So to make a Newton package file, you can simply type the same thing three times:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Exegen /f 4 WabaHelloWorld WabaHelloWorld WabaHelloWorld
+</pre></td></tr></table>
+
+<p>...and you should get back something like:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+Waba Launch Executable Generator for Java, Version Exegen 1.40.0Nf
+Copyright (C) Rob Nielsen 1999. All rights reserved
+Newton modifications: Copyright (C) S. Weyer 2001. All rights reserved
+
+output files:    WabaHelloWorld.pkg
+class name: WabaHelloWorld
+PalmOS PRC icon: &lt;default&gt;
+class heap size: 14000
+object heap size: 8000
+native stack size: 300
+stack size: 1500
+...writing WabaHelloWorld.pkg
+...done
+</pre></td></tr></table>
+
+<p>...and again, to generate a library (when that soon becomes an option) rather than an application, you might do something like:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Exegen /f 20 WabaHelloWorld WabaHelloWorld WabaHelloWorld
+</pre></td></tr></table>
+
+<li>And now our packaging is done.  You might want to ultimately give the thing an icon, but for our purposes, it should now run great on the Newton. The Newton application is called <b>WabaHelloWorld.pkg</b>.  You can throw away the <b>WabaHelloWorld.pkg~</b> file.  Again, see the <a href="#addendum">addendum</a> below on how to make non-Newton Waba files. 
+
+<li>If you have PackType installed somewhere on your system, then you can give your <b> WabaHelloWorld.pkg</b> file the proper Macintosh TYPE and CREATOR codes by issuing the following command:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+open -a PackType WabaHelloWorld.pkg
+</pre></td></tr></table>
+
+<p>If this doesn't work, you can always drag the <b>WabaHelloWorld.pkg</b> file onto the PackType icon.
+
+<li>BTW, Steve Weyer put together a nice graphical interface for those people not fortunate enough to have a command-line interface to these tools.  :-)  You can use this interface by typing (from the, er, command line...):
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.GUI&
+</pre></td></tr></table>
+
+<p>Read more about using this tool at <a href="http://members.home.net/saweyer/waba/dev/wabanewton_usecreate.htm#CreateNewton">Steve Weyer's Newton Development Page</a>.
+
+</ol>
+
+<a name="addendum"><h3>Addendum: Building PalmOS and WinCE Waba files</h3></a>
+
+<p>For our simple application, building the PalmOS and WinCE Waba files is as easy as typing the following:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Warp c /f 3 WabaHelloWorld
+java wababin.Exegen /f 3 WabaHelloWorld WabaHelloWorld WabaHelloWorld
+</pre></td></tr></table>
+
+<p>The Palm's distributed files are the <b>WabaHelloWorld.pdb</b> and <b>WabaHelloWorld.prc</b> files.  The WinCE files are <b>WabaHelloWorld.lnk</b> and <b>WabaHelloWorld.wrp</b>.  Unlike in the Newton .pkg file, you need to distribute <i>both</i> files for these platforms. 
+
+<p>But if you rely on classes normally in a Newton Library (other than waba.pkg), then it's not quite this easy.  The Newton uses a library scheme to look up Waba class files.  PalmOS and WinCE do not.  This means that if you rely on a class outside the standard waba.* packages, you will need to include it directly into your system.
+
+<p>So let's say you rely on a class in the WabaExtras library, such as <b>extra.util.Maths</b>.  You expect Newton users to have the <b>wextra.pkg</b> file installed, so you don't need to include this class in the Newton package.  Which is good, because since wextra.jar is presently a jar file, Warp won't extract classes from it.
+
+<p>But PalmOS and WinCE apps <i>need</i> that class embedded in the application -- they have no notion of libraries like Waba for the Newton does.  So how do you tell Warp to embed the class?  The answer is, you need to un-jar the jar file, at least for the time being so you can compile the PalmOS and WinCE apps.  The easiest way to do this is:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+jar -xvf ~/java/jar/wextra.jar
+</pre></td></tr></table>
+
+<p>...which will generate:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+  created: META-INF/
+extracted: META-INF/MANIFEST.MF
+extracted: extra/io/BufferStream.class
+extracted: extra/io/DataStream.class
+extracted: extra/io/ObjectCatalog.class
+extracted: extra/io/Storable.class
+extracted: extra/io/builtin/Address.class
+extracted: extra/io/builtin/Datebook.class
+extracted: extra/io/builtin/Memo.class
+extracted: extra/io/builtin/ToDo.class
+extracted: extra/ui/BigNumber.class
+extracted: extra/ui/ExtraMainWindow.class
+extracted: extra/ui/GridContainer.class
+extracted: extra/ui/List.class
+extracted: extra/ui/Menu.class
+extracted: extra/ui/MenuBar.class
+extracted: extra/ui/Popup.class
+extracted: extra/ui/PreferredSize.class
+extracted: extra/ui/Pushbutton.class
+extracted: extra/ui/RelativeContainer.class
+extracted: extra/ui/RelativeLayoutInfo.class
+extracted: extra/ui/Title.class
+extracted: extra/util/Maths.class
+</pre></td></tr></table>
+
+<p>Now you have the files as class files in your directory, along with the other java files you've done.  So let's assume you've already compiled your application.  You generate the PalmOS and WinCE warp files for your application <b>Foo</b>, followed by Exegen, with:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+java wababin.Warp c /f 3 Foo
+java wababin.Exegen /f 3 Foo Foo Foo
+</pre></td></tr></table>
+
+<p>...in Warp's response, you should see it indicate that it's <i>also</i> packaging the Maths class as well.  When you're ready to generate Newton classes again, you'll need to get rid of these directories so that Warp doesn't try to package them needlessly into your  Waba package.  To do that, you'd do something like:
+
+<p><table border=2><tr><td bgcolor=lightblue><pre>
+rm -rf META-INF extra
+</pre></td></tr></table>
+
+<br>
+<br>
+<br>
+</body></html>

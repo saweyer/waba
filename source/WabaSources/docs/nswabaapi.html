@@ -1,0 +1,34 @@
+<html><head><title>About the NSWabaAPI</title></head><body bgcolor=white>
+
+<h2> About the NSWabaAPI </h2>
+
+<p> The NSWabaAPI is a set of three classes (<b>newton.Ref</b>, <b>newton.Callback</b>, and <b>newton.NS</b> ) which make it possible for Newton developers to use Waba to access any part of the Newton operating system.  The NSWabaAPI is what <i>really</i> makes it possible for Waba to truly be an optional language choice for Newton development, and not just a cross-platform option.
+
+<H3>Classes</h3>
+
+<p>The basic class in the API is <b>Ref</b>, which represents pointers to NewtonScript objects.  If you've done any C++ NewtonScript programming, you'll be right at home with Refs (they're implemented in C++ with RefStructs).  A Ref can point to NIL, integers, characters, symbols, frames, arrays, floats, strings, binary data, functions, and magic pointers.  The <b>Ref</b> class lets you create these objects, and manipulate them.  You can get and set slots and paths in arrays and frames, extract strings and binary data, call global functions, or call methods.
+
+<p>The <b>NS</b> class lets you access certain important objects in the NewtonScript environment, including your virtual machine's window and drawing area, and all the protos in the ROM.  NS also contains some simple auxillary functions, such as ones which automatically create frames which point to a proto, or generate bounds frames.
+
+<p>The <b>Callback</b> class makes callback functions possible.  Basically, you create a subclass of Callback with the code you want called back, then instantiate it and ask Waba to generate a "wrapper" NewtonScript function which calls your Waba code.  You can then pass this function (as a Ref) anywhere a callback function is required by the NewtonScript system.  Note that C++ can't make callbacks, which is why unlike Java, you can't just use pure C++ to code Newton applications.  How do we do it?  It's magic!  Let's just say that closures are an amazing thing.
+
+<h3>Examples</h3>
+
+<p>This distribution comes with two very simple applications which demonstrate the basics of the NSWabaAPI.  The first program, <b>NewtonHelloWorld</b>, uses Ref and NS to allocate a protoStaticText label and splat it in the Waba app window.
+
+<p>The second program, <b>NewtonButtonExample</b>, uses Ref, NS, and Callback to allocate a protoTextButton and stick it on the Waba app window.  When the button is pressed, it calls the callback, which then pops up a Notify window.  The program also tosses in a waba.ui.Label object, showing that Newton and Waba widgets can indeed live in harmony.
+
+<h3>Caveats</h3>
+
+<p>The API has not been really tested with multiple windows (other than Notify dialogs).  Remember that Waba itself can only draw inside the drawing area of the main Waba window -- so if you want to draw in other windows, you'll have to do so entirely through the NSWabaAPI.  This may have unforseen (by me) consequences.
+
+<p>Waba applications have no notion of InstallScripts, DeletionScripts, or RemoveScripts.  If your needs require one of these scripts, then you're stuck. 
+
+<p>Though you can request any NOS 2.1 proto by its symbol name through the NS class, you cannot do the same for any non-proto object in the NOS 2.1 platform file.  For example, in the <b>NewtonButtonExample</b> program code, we pop up a Notify with the value <b>kNotifyQAlert</b>.  This symbol is defined in the NOS 2.1 platform file, and ordinarily in NewtonScript you can just state it.  But since it's not a proto (it's an integer), Waba doesn't include it for memory reasons, and you'll need to use the actual constant (4) instead.  Thus the NOS 2.0 and 2.1 platform files will become your friends.  These files are distributed with the Newton Tool Kit (NTK). 
+
+<p>By itself, the NSWabaAPI is pretty low-level.  To use it, you need to have a fair understanding of the NewtonScript development environment (the Newton Programmer's Guide will help you a lot).  My hope is that people will build higher-level objects for common items (buttons, labels, scrollable lists, soup access) to abstract this for most Newton Waba developers.
+
+<br>
+<br>
+<br>
+</body></html>

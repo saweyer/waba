@@ -1,0 +1,16 @@
+To construct the wababin.jar file:
+
+1. Compile the classes if they're not already compiled.  Be certain that
+   the wababin directory is in your CLASSPATH.  Since I have "." in my
+   CLASSPATH, I'm able to simply do:
+
+	javac wababin/*.java wababin/*/*.java 
+
+2. Construct the jar file with the all the class, gif, and pkg files 
+   (that is, everything *except* the java files -- though it's no disaster
+   if you leave them in).  I do it as:
+
+	jar -cvf wababin.jar wababin/*.class wababin/*.gif wababin/pkg/*.class wababin/pkg/*.pkg
+
+-- Sean
+

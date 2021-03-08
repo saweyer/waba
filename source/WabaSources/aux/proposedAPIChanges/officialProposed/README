@@ -1,0 +1,37 @@
+This directory contains class files with proposed changes.  The main
+class file not included here that I have gripes about is Catalog.java,
+which we've discussed already ad infinitum, but haven't goten anywhere
+on yet.
+
+All of them compile.
+I make no guarantees that they work right tho!  :-)
+
+MethodsHash.java
+    This file isn't being proposed as part of the spec -- it's just a
+    modification of Guich's MethodsHash class which I use to generate
+    my Newton code.  You can use it easily to see if the native hash numbers
+    I reported are correct (and if I wrote the method signatures right).
+    
+PushbackStream.java
+    This is a new proposed class which subclasses from Stream and provides
+    pushback facilities.  I suggest that all stream objects which don't 
+    produce original material should subclass from this stream instead
+    and use its facilities when appropriate.
+
+Stream.java
+Graphics.java
+Control.java
+Font.java
+FontMetrics.java
+Image.java
+    I have tried to stay completely backwards-compatible, even to the point
+    of making sometimes ugly new constructors to replace broken old ones 
+    (see Font.java)  New features have been added.  Many function names
+    have been deprecated and changed to be more compliant with JDK to ease
+    porting.  New native methods have been supplied with hash numbers
+    and proposed C function equivalents.  In some cases I give non-native
+    code for situations (like fillPolygon) where it's difficult to implement
+    native versions on some platforms.
+
+Sean
+

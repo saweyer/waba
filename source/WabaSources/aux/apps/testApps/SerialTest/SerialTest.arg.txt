@@ -1,0 +1,1 @@
+kAppArgs.classHeapSize := 14000;kAppArgs.objectHeapSize := 8000;kAppArgs.vmStackSize := 1500;kAppArgs.nmStackSize := 300;kAppArgs.uniqueSymbol := '|SerialTest:waba|;StrMunger(kAppMainName,0,nil, "SerialTest",0,nil);

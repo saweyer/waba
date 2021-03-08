@@ -1,0 +1,1 @@
+InstallScript := func(partFrame)	begin	// add a place where our VMs can register themselves	DefGlobalVar(kRegisterSym, EnsureInternal([]));	end;
